@@ -18,11 +18,39 @@ public void preconfigure(File? db_file) {
 public void init() throws Error {
     assert(filename != null);
     
+    create_lock_file();
     DatabaseTable.init(filename);
 }
 
 public void terminate() {
     DatabaseTable.terminate();
+    delete_lock_file();
+}
+
+public void create_lock_file() {
+    string lockfile = filename + ".lock";
+    try {
+        string content;
+        FileUtils.get_contents(lockfile, out content);
+        AppWindow.panic(_("Database locked by another instance of Shotwell. Either Shotwell didn't shut down cleanly or another machine running Shotwell is accessing the same photo database. If you are sure you want to continue, please delete the lock file:\n%s".printf(lockfile)));
+        Gtk.main_quit();
+    } catch (FileError e) {
+    }
+    try {
+        FileUtils.set_contents(lockfile, "");
+    } catch (FileError e) {
+        stderr.printf("%s %s\n", e.message, lockfile);
+        Gtk.main_quit();
+    }
+}
+
+public void delete_lock_file() {
+    string lockfile = filename + ".lock";
+    try {
+        File.new_for_path(lockfile).delete();
+    } catch (GLib.Error e) {
+        stderr.printf("%s %s\n", e.message, lockfile);
+    }
 }
 
 public enum VerifyResult {
